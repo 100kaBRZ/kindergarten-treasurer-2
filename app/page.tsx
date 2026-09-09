@@ -275,52 +275,35 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Progress Bar */}
-        {!stats.isActivated && (
-          <div className="bg-white rounded-xl shadow-md border-2 border-gray-200 p-6 mb-8">
-            <div className="flex justify-between items-center mb-3">
-              <div>
-                <p className="font-bold text-gray-900 text-lg">📊 Использование лимита</p>
-                <p className="text-gray-600 font-medium">
-                  {stats.count} из {stats.limit} записей
-                </p>
-              </div>
-              <button
-                onClick={() => setShowTariffModal(true)}
-                className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white px-6 py-3 rounded-lg font-bold hover:from-yellow-600 hover:to-orange-600 transition shadow-lg"
-              >
-                ⚡ Увеличить лимит
-              </button>
+        {/* Progress Bar - ALWAYS VISIBLE */}
+        <div className="bg-white rounded-xl shadow-md border-2 border-gray-200 p-6 mb-8">
+          <div className="flex justify-between items-center mb-3">
+            <div>
+              <p className="font-bold text-gray-900 text-lg">📊 Использование лимита</p>
+              <p className="text-gray-600 font-medium">
+                {stats.count} из {stats.limit} записей
+              </p>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-4">
-              <div 
-                className={`h-4 rounded-full transition-all ${
-                  stats.count / stats.limit > 0.9 ? 'bg-red-500' : 
-                  stats.count / stats.limit > 0.7 ? 'bg-yellow-500' : 'bg-green-500'
-                }`}
-                style={{ width: `${Math.min((stats.count / stats.limit) * 100, 100)}%` }}
-              ></div>
-            </div>
-            <p className="text-sm text-gray-600 mt-2 font-medium">
-              Осталось: {Math.max(stats.limit - stats.count, 0)} записей
-            </p>
+            <button
+              onClick={() => setShowTariffModal(true)}
+              className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white px-6 py-3 rounded-lg font-bold hover:from-yellow-600 hover:to-orange-600 transition shadow-lg"
+            >
+              ⚡ Увеличить лимит
+            </button>
           </div>
-        )}
-
-        {/* Compact Activated Tariff Banner */}
-        {stats.isActivated && (
-          <div className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-lg shadow-md p-3 mb-6 text-white flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Check size={20} className="flex-shrink-0" />
-              <div>
-                <p className="font-bold text-sm md:text-base">
-                  ✅ Тариф: {stats.limitType === 'unlimited' ? 'Безлимит' : stats.limit + ' записей'}
-                </p>
-                <p className="text-xs md:text-sm opacity-90">Использовано: {stats.count}</p>
-              </div>
-            </div>
+          <div className="w-full bg-gray-200 rounded-full h-4">
+            <div 
+              className={`h-4 rounded-full transition-all ${
+                stats.count / stats.limit > 0.9 ? 'bg-red-500' : 
+                stats.count / stats.limit > 0.7 ? 'bg-yellow-500' : 'bg-green-500'
+              }`}
+              style={{ width: `${Math.min((stats.count / stats.limit) * 100, 100)}%` }}
+            ></div>
           </div>
-        )}
+          <p className="text-sm text-gray-600 mt-2 font-medium">
+            Осталось: {Math.max(stats.limit - stats.count, 0)} записей
+          </p>
+        </div>
 
         {/* Add Form */}
         {showForm && (
@@ -511,7 +494,7 @@ export default function Dashboard() {
           <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4 overflow-y-auto">
             <div className="bg-white rounded-xl max-w-4xl w-full p-6 my-8">
               <div className="flex justify-between items-center mb-6">
-                <h3 className="text-2xl font-bold text-gray-900">🚀 Выберите тариф</h3>
+                <h3 className="text-2xl font-bold text-gray-900"> Выберите тариф</h3>
                 <button 
                   onClick={() => setShowTariffModal(false)}
                   className="p-2 hover:bg-gray-100 rounded-lg transition"
