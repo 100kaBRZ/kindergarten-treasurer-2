@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Wallet, TrendingUp, TrendingDown, Download, PlusCircle, Search, Image as ImageIcon, X } from 'lucide-react';
+import { TrendingUp, TrendingDown, Wallet, Download, PlusCircle, Search, Check, X, Image as ImageIcon } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
 interface Transaction {
@@ -14,11 +14,20 @@ interface Transaction {
   created_at: string;
 }
 
+interface Stats {
+  count: number;
+  limit: number;
+  isActivated: boolean;
+  limitType: string;
+}
+
 export default function Dashboard() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [stats, setStats] = useState<Stats>({ count: 0, limit: 50, isActivated: false, limitType: 'free' });
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
+  const [showTariffModal, setShowTariffModal] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [viewReceiptUrl, setViewReceiptUrl] = useState<string | null>(null);
@@ -30,17 +39,27 @@ export default function Dashboard() {
   });
 
   useEffect(() => {
-    fetch('/api/transactions')
-      .then(res => res.json())
-      .then(data => {
-        setTransactions(data);
-        setLoading(false);
-      })
-      .catch(err => {
-        console.error('Error loading data:', err);
-        setLoading(false);
-      });
+    loadData();
   }, []);
+
+  const loadData = async () => {
+    try {
+      const [transactionsRes, statsRes] = await Promise.all([
+        fetch('/api/transactions'),
+        fetch('/api/stats')
+      ]);
+      
+      const transactionsData = await transactionsRes.json();
+      const statsData = await statsRes.json();
+      
+      setTransactions(transactionsData);
+      setStats(statsData);
+    } catch (error) {
+      console.error('Error loading data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const totalIncome = transactions
     .filter(t => t.type === 'income')
@@ -63,7 +82,6 @@ export default function Dashboard() {
     
     let receiptUrl = null;
     
-    // Если это расход и есть файл — загружаем его
     if (formData.type === 'expense' && selectedFile) {
       const fileFormData = new FormData();
       fileFormData.append('file', selectedFile);
@@ -77,8 +95,6 @@ export default function Dashboard() {
         if (uploadRes.ok) {
           const uploadData = await uploadRes.json();
           receiptUrl = uploadData.url;
-        } else {
-          console.error('Upload failed');
         }
       } catch (error) {
         console.error('Upload error:', error);
@@ -97,9 +113,17 @@ export default function Dashboard() {
       })
     });
     
+    if (res.status === 403) {
+      const errorData = await res.json();
+      if (errorData.error === 'LIMIT_REACHED') {
+        setShowTariffModal(true);
+        setUploading(false);
+        return;
+      }
+    }
+    
     if (res.ok) {
-      const newTransaction = await res.json();
-      setTransactions([newTransaction, ...transactions]);
+      await loadData();
       setShowForm(false);
       setFormData({ type: 'income', amount: '', description: '', child_name: '' });
       setSelectedFile(null);
@@ -108,6 +132,14 @@ export default function Dashboard() {
     }
     
     setUploading(false);
+  };
+
+  const handlePayment = async (plan: string) => {
+    const email = prompt('Введите email для получения промокода:');
+    if (!email) return;
+    
+    alert(`Переход к оплате тарифа "${plan}". Email: ${email}\n\n(Здесь будет интеграция с ЮKassa)`);
+    // TODO: Интеграция с ЮKassa
   };
 
   const exportToExcel = () => {
@@ -200,6 +232,57 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {/* Progress Bar - Only show if NOT activated */}
+        {!stats.isActivated && (
+          <div className="bg-white rounded-xl shadow-md border-2 border-gray-200 p-6 mb-8">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">📊 Использование лимита</h3>
+                <p className="text-sm text-gray-600 font-medium">
+                  {stats.count} из {stats.limit} записей
+                </p>
+              </div>
+              <button
+                onClick={() => setShowTariffModal(true)}
+                className="bg-gradient-to-r from-orange-500 to-amber-500 text-white px-4 py-2 rounded-lg font-bold hover:from-orange-600 hover:to-amber-600 transition flex items-center gap-2"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                </svg>
+                Увеличить лимит
+              </button>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-3">
+              <div
+                className="bg-gradient-to-r from-green-500 to-emerald-500 h-3 rounded-full transition-all duration-500"
+                style={{ width: `${Math.min((stats.count / stats.limit) * 100, 100)}%` }}
+              ></div>
+            </div>
+            <p className="text-sm text-gray-600 font-medium mt-2">
+              Осталось: {Math.max(stats.limit - stats.count, 0)} записей
+            </p>
+          </div>
+        )}
+
+        {/* Activated Tariff Block */}
+        {stats.isActivated && (
+          <div className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl shadow-md p-6 mb-8 text-white">
+            <div className="flex items-center gap-3">
+              <Check size={32} />
+              <div>
+                {stats.limit === 999999 || stats.limitType === 'unlimited' ? (
+                  <p className="font-bold text-xl">✅ Безлимит активирован!</p>
+                ) : (
+                  <>
+                    <p className="font-bold text-xl">✅ Тариф на {stats.limit} записей активирован!</p>
+                    <p className="font-medium opacity-90">Использовано: {stats.count} из {stats.limit}</p>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Add Form */}
         {showForm && (
           <div className="bg-white p-6 rounded-xl shadow-md border-2 border-gray-200 mb-8">
@@ -211,7 +294,7 @@ export default function Dashboard() {
                 className="p-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none font-medium text-gray-900"
               >
                 <option value="income">💰 Взнос (Доход)</option>
-                <option value="expense">💸 Расход</option>
+                <option value="expense"> Расход</option>
               </select>
               <input 
                 type="number" 
@@ -237,7 +320,7 @@ export default function Dashboard() {
                 className="p-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none font-medium text-gray-900 placeholder-gray-500"
               />
               
-              {/* Загрузка чека (только для расходов) */}
+              {/* Receipt Upload - Only for expenses */}
               {formData.type === 'expense' && (
                 <div className="md:col-span-4">
                   <label className="block text-sm font-bold text-gray-900 mb-2">
@@ -255,7 +338,7 @@ export default function Dashboard() {
                     </p>
                   )}
                   <p className="text-xs text-gray-500 mt-1">
-                    Поддерживаются: JPG, PNG, WEBP
+                    Поддерживаются: JPG, PNG, WEBP (макс 32 МБ)
                   </p>
                 </div>
               )}
@@ -379,6 +462,43 @@ export default function Dashboard() {
                 >
                   Закрыть
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Tariff Modal */}
+        {showTariffModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-auto">
+              <div className="flex justify-between items-center p-6 border-b-2">
+                <h2 className="text-2xl font-bold text-gray-900">Выберите тариф</h2>
+                <button
+                  onClick={() => setShowTariffModal(false)}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+              <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                {[
+                  { id: '200', name: '200 записей', price: 750, color: 'blue' },
+                  { id: '500', name: '500 записей', price: 1490, color: 'purple' },
+                  { id: 'unlimited', name: 'Безлимит', price: 2190, color: 'gold' }
+                ].map(plan => (
+                  <button
+                    key={plan.id}
+                    onClick={() => handlePayment(plan.id)}
+                    className={`p-6 rounded-xl border-2 transition font-bold text-white ${
+                      plan.color === 'blue' ? 'border-blue-500 bg-blue-600 hover:bg-blue-700' :
+                      plan.color === 'purple' ? 'border-purple-500 bg-purple-600 hover:bg-purple-700' :
+                      'border-yellow-500 bg-yellow-600 hover:bg-yellow-700'
+                    }`}
+                  >
+                    <p className="text-xl mb-2">{plan.name}</p>
+                    <p className="text-2xl">{plan.price.toLocaleString()} ₽</p>
+                  </button>
+                ))}
               </div>
             </div>
           </div>
