@@ -229,7 +229,7 @@ export default function Dashboard() {
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">🏫 Казначей Детского сада</h1>
+            <h1 className="text-3xl font-bold text-gray-900">🤸‍♂️ Казначей Детского сада</h1>
             <p className="text-gray-700 font-medium mt-1">Учет взносов и расходов группы</p>
           </div>
           <div className="flex gap-2">
