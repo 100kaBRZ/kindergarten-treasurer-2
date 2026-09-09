@@ -31,6 +31,7 @@ export default function Dashboard() {
   const [uploading, setUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [viewReceiptUrl, setViewReceiptUrl] = useState<string | null>(null);
+  const [promoCode, setPromoCode] = useState('');
   const [formData, setFormData] = useState({
     type: 'income',
     amount: '',
@@ -75,6 +76,28 @@ export default function Dashboard() {
     t.description.toLowerCase().includes(search.toLowerCase()) || 
     (t.child_name && t.child_name.toLowerCase().includes(search.toLowerCase()))
   );
+
+  const handleActivatePromo = async () => {
+    if (!promoCode) {
+      alert('Введите промокод');
+      return;
+    }
+    
+    const res = await fetch('/api/activate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: promoCode })
+    });
+    
+    const data = await res.json();
+    if (res.ok) {
+      alert(`✅ Промокод активирован!\n\nЛимит: ${data.limit_value} записей`);
+      setPromoCode('');
+      await loadData();
+    } else {
+      alert(`❌ Ошибка: ${data.error}`);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -149,8 +172,8 @@ export default function Dashboard() {
     
     alert(
       ` Информация по тарифу "${names[plan as keyof typeof names]}"\n\n` +
-      `💰 Стоимость: ${prices[plan as keyof typeof prices]}\n\n` +
-      `Для активации тарифа свяжитесь с администратором.\n` +
+      ` Стоимость: ${prices[plan as keyof typeof prices]}\n\n` +
+      `Для активации тарифа свяжитесь с администратором и получите промокод.\n` +
       `Админ-панель: /admin`
     );
   };
@@ -296,6 +319,31 @@ export default function Dashboard() {
           </div>
         )}
 
+        {/* Promo Code Activation - Only show if NOT activated */}
+        {!stats.isActivated && (
+          <div className="bg-white rounded-xl shadow-md border-2 border-gray-200 p-6 mb-8">
+            <h3 className="text-lg font-bold text-gray-900 mb-4">🎟️ Активация промокода</h3>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                placeholder="Введите промокод"
+                value={promoCode}
+                onChange={(e) => setPromoCode(e.target.value)}
+                className="flex-1 p-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none font-medium"
+              />
+              <button
+                onClick={handleActivatePromo}
+                className="bg-blue-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-blue-700 transition"
+              >
+                Активировать
+              </button>
+            </div>
+            <p className="text-sm text-gray-600 mt-2">
+              Промокод можно получить у администратора
+            </p>
+          </div>
+        )}
+
         {/* Add Form */}
         {showForm && (
           <div className="bg-white p-6 rounded-xl shadow-md border-2 border-gray-200 mb-8">
@@ -337,7 +385,7 @@ export default function Dashboard() {
               {formData.type === 'expense' && (
                 <div className="md:col-span-4">
                   <label className="block text-sm font-bold text-gray-900 mb-2">
-                    📎 Чек (фото, необязательно)
+                     Чек (фото, необязательно)
                   </label>
                   <input 
                     type="file" 
@@ -499,7 +547,7 @@ export default function Dashboard() {
                 {/* Расширенный */}
                 <div className="border-2 border-blue-200 rounded-xl p-6 bg-blue-50 hover:shadow-lg transition">
                   <div className="flex items-center gap-2 mb-4">
-                    <span className="text-2xl"></span>
+                    <span className="text-2xl">⚡</span>
                     <h3 className="text-xl font-bold text-gray-900">Расширенный</h3>
                   </div>
                   <p className="text-3xl font-bold text-gray-900 mb-2">750 ₽</p>
