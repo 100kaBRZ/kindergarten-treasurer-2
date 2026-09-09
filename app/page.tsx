@@ -264,24 +264,29 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Activated Tariff Block */}
-        {stats.isActivated && (
-          <div className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl shadow-md p-6 mb-8 text-white">
-            <div className="flex items-center gap-3">
-              <Check size={32} />
-              <div>
-                {stats.limit === 999999 || stats.limitType === 'unlimited' ? (
-                  <p className="font-bold text-xl">✅ Безлимит активирован!</p>
-                ) : (
-                  <>
-                    <p className="font-bold text-xl">✅ Тариф на {stats.limit} записей активирован!</p>
-                    <p className="font-medium opacity-90">Использовано: {stats.count} из {stats.limit}</p>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
+		{/* Activated Tariff Block - Compact & Sticky */}
+		{stats.isActivated && (
+		<div className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-lg shadow-md p-4 mb-6 text-white sticky top-4 z-10">
+			<div className="flex items-center justify-between">
+			<div className="flex items-center gap-3">
+				<Check size={24} />
+				<div>
+				{stats.limit === 999999 || stats.limitType === 'unlimited' ? (
+					<p className="font-bold">✅ Безлимит активирован!</p>
+				) : (
+					<p className="font-bold">✅ Тариф: {stats.count} из {stats.limit} записей</p>
+				)}
+				</div>
+			</div>
+			<button
+				onClick={() => setShowTariffModal(true)}
+				className="bg-white bg-opacity-20 hover:bg-opacity-30 px-4 py-2 rounded-lg font-medium transition text-sm"
+			>
+				Сменить тариф
+			</button>
+			</div>
+		</div>
+		)}
 
         {/* Add Form */}
         {showForm && (
