@@ -1,7 +1,6 @@
 'use client';
-
 import { useState, useEffect } from 'react';
-import { TrendingUp, TrendingDown, Wallet, Download, PlusCircle, Search, Check, X, Image as ImageIcon } from 'lucide-react';
+import { Wallet, TrendingUp, TrendingDown, Download, PlusCircle, Search, X, Check, Zap, Star, Crown, Image as ImageIcon } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
 interface Transaction {
@@ -21,46 +20,77 @@ interface Stats {
   limitType: string;
 }
 
+const TARIFFS = [
+  {
+    id: '200',
+    name: 'Расширенный',
+    limit: 200,
+    price: 750,
+    icon: Zap,
+    color: 'blue',
+    features: ['200 записей', 'Экспорт в Excel', 'Поиск по записям']
+  },
+  {
+    id: '500',
+    name: 'Профессиональный',
+    limit: 500,
+    price: 1490,
+    icon: Star,
+    color: 'purple',
+    features: ['500 записей', 'Экспорт в Excel', 'Поиск по записям', 'Приоритетная поддержка']
+  },
+  {
+    id: 'unlimited',
+    name: 'Безлимит',
+    limit: 999999,
+    price: 2190,
+    icon: Crown,
+    color: 'gold',
+    features: ['Безлимитные записи', 'Все функции', 'Пожизненный доступ', 'VIP поддержка']
+  }
+];
+
 export default function Dashboard() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [stats, setStats] = useState<Stats>({ count: 0, limit: 50, isActivated: false, limitType: 'free' });
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
-  const [showTariffModal, setShowTariffModal] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [viewReceiptUrl, setViewReceiptUrl] = useState<string | null>(null);
-  const [promoCode, setPromoCode] = useState('');
   const [formData, setFormData] = useState({
     type: 'income',
     amount: '',
     description: '',
     child_name: ''
   });
+  const [stats, setStats] = useState<Stats>({ count: 0, limit: 50, isActivated: false, limitType: 'free' });
+  const [showTariffModal, setShowTariffModal] = useState(false);
+  const [showActivateModal, setShowActivateModal] = useState(false);
+  const [promoCode, setPromoCode] = useState('');
+  const [activating, setActivating] = useState(false);
+  const [activationMessage, setActivationMessage] = useState('');
+  
+  // Новые состояния для загрузки чеков
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [viewReceiptUrl, setViewReceiptUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    loadData();
+    fetch('/api/transactions')
+      .then(res => res.json())
+      .then(data => {
+        setTransactions(data);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error('Error loading data:', err);
+        setLoading(false);
+      });
   }, []);
 
-  const loadData = async () => {
-    try {
-      const [transactionsRes, statsRes] = await Promise.all([
-        fetch('/api/transactions'),
-        fetch('/api/stats')
-      ]);
-      
-      const transactionsData = await transactionsRes.json();
-      const statsData = await statsRes.json();
-      
-      setTransactions(transactionsData);
-      setStats(statsData);
-    } catch (error) {
-      console.error('Error loading data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  useEffect(() => {
+    fetch('/api/stats')
+      .then(res => res.json())
+      .then(data => setStats(data));
+  }, []);
 
   const totalIncome = transactions
     .filter(t => t.type === 'income')
@@ -72,32 +102,10 @@ export default function Dashboard() {
   
   const balance = totalIncome - totalExpense;
 
-  const filtered = transactions.filter(t => 
-    t.description.toLowerCase().includes(search.toLowerCase()) || 
+  const filtered = transactions.filter(t =>
+    t.description.toLowerCase().includes(search.toLowerCase()) ||
     (t.child_name && t.child_name.toLowerCase().includes(search.toLowerCase()))
   );
-
-  const handleActivatePromo = async () => {
-    if (!promoCode) {
-      alert('Введите промокод');
-      return;
-    }
-    
-    const res = await fetch('/api/activate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code: promoCode })
-    });
-    
-    const data = await res.json();
-    if (res.ok) {
-      alert(`✅ Промокод активирован!\n\nЛимит: ${data.limit_value} записей`);
-      setPromoCode('');
-      await loadData();
-    } else {
-      alert(`❌ Ошибка: ${data.error}`);
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -105,6 +113,7 @@ export default function Dashboard() {
     
     let receiptUrl = null;
     
+    // Загрузка чека только для расходов
     if (formData.type === 'expense' && selectedFile) {
       const fileFormData = new FormData();
       fileFormData.append('file', selectedFile);
@@ -146,36 +155,17 @@ export default function Dashboard() {
     }
     
     if (res.ok) {
-      await loadData();
+      const newTransaction = await res.json();
+      setTransactions([newTransaction, ...transactions]);
       setShowForm(false);
       setFormData({ type: 'income', amount: '', description: '', child_name: '' });
       setSelectedFile(null);
+      setStats({ ...stats, count: stats.count + 1 });
     } else {
       alert('Ошибка при сохранении');
     }
     
     setUploading(false);
-  };
-
-  const handlePayment = (plan: string) => {
-    const prices = {
-      '200': '750 ₽',
-      '500': '1 490 ₽',
-      'unlimited': '2 190 ₽'
-    };
-    
-    const names = {
-      '200': 'Расширенный (200 записей)',
-      '500': 'Профессиональный (500 записей)',
-      'unlimited': 'Безлимит'
-    };
-    
-    alert(
-      ` Информация по тарифу "${names[plan as keyof typeof names]}"\n\n` +
-      ` Стоимость: ${prices[plan as keyof typeof prices]}\n\n` +
-      `Для активации тарифа свяжитесь с администратором и получите промокод.\n` +
-      `Админ-панель: /admin`
-    );
   };
 
   const exportToExcel = () => {
@@ -205,6 +195,29 @@ export default function Dashboard() {
     XLSX.writeFile(wb, `otchet_${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
+  const handleActivate = async () => {
+    setActivating(true);
+    setActivationMessage('');
+    const res = await fetch('/api/activate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: promoCode })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      setActivationMessage('✅ ' + data.message);
+      setPromoCode('');
+      setStats({ ...stats, isActivated: true, limit: data.newLimit });
+      setTimeout(() => {
+        setShowActivateModal(false);
+        setActivationMessage('');
+      }, 2000);
+    } else {
+      setActivationMessage('❌ ' + data.error);
+    }
+    setActivating(false);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -226,18 +239,18 @@ export default function Dashboard() {
             <p className="text-gray-700 font-medium mt-1">Учет взносов и расходов группы</p>
           </div>
           <div className="flex gap-2">
-            <button 
-              onClick={() => setShowForm(!showForm)} 
+            <button
+              onClick={() => setShowForm(!showForm)}
               className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition font-medium"
             >
-              <PlusCircle size={18} /> 
+              <PlusCircle size={18} />
               {showForm ? 'Закрыть' : 'Добавить'}
             </button>
-            <button 
+            <button
               onClick={exportToExcel}
               className="flex items-center gap-2 bg-white border-2 border-gray-300 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-50 transition font-medium"
             >
-              <Download size={18} /> 
+              <Download size={18} />
               Excel
             </button>
           </div>
@@ -268,79 +281,47 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Progress Bar - Only show if NOT activated */}
+        {/* Progress Bar */}
         {!stats.isActivated && (
           <div className="bg-white rounded-xl shadow-md border-2 border-gray-200 p-6 mb-8">
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex justify-between items-center mb-3">
               <div>
-                <h3 className="text-lg font-bold text-gray-900">📊 Использование лимита</h3>
-                <p className="text-sm text-gray-600 font-medium">
+                <p className="font-bold text-gray-900 text-lg">📊 Использование лимита</p>
+                <p className="text-gray-600 font-medium">
                   {stats.count} из {stats.limit} записей
                 </p>
               </div>
               <button
                 onClick={() => setShowTariffModal(true)}
-                className="bg-gradient-to-r from-orange-500 to-amber-500 text-white px-4 py-2 rounded-lg font-bold hover:from-orange-600 hover:to-amber-600 transition flex items-center gap-2"
+                className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white px-6 py-3 rounded-lg font-bold hover:from-yellow-600 hover:to-orange-600 transition shadow-lg"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
-                </svg>
-                Увеличить лимит
+                ⚡ Увеличить лимит
               </button>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-3">
-              <div
-                className="bg-gradient-to-r from-green-500 to-emerald-500 h-3 rounded-full transition-all duration-500"
+            <div className="w-full bg-gray-200 rounded-full h-4">
+              <div 
+                className={`h-4 rounded-full transition-all ${
+                  stats.count / stats.limit > 0.9 ? 'bg-red-500' : 
+                  stats.count / stats.limit > 0.7 ? 'bg-yellow-500' : 'bg-green-500'
+                }`}
                 style={{ width: `${Math.min((stats.count / stats.limit) * 100, 100)}%` }}
               ></div>
             </div>
-            <p className="text-sm text-gray-600 font-medium mt-2">
+            <p className="text-sm text-gray-600 mt-2 font-medium">
               Осталось: {Math.max(stats.limit - stats.count, 0)} записей
             </p>
           </div>
         )}
 
-        {/* Activated Tariff Block */}
         {stats.isActivated && (
           <div className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl shadow-md p-6 mb-8 text-white">
             <div className="flex items-center gap-3">
               <Check size={32} />
               <div>
-                {stats.limit === 999999 || stats.limitType === 'unlimited' ? (
-                  <p className="font-bold text-xl">✅ Безлимит активирован!</p>
-                ) : (
-                  <>
-                    <p className="font-bold text-xl">✅ Тариф на {stats.limit} записей активирован!</p>
-                    <p className="font-medium opacity-90">Использовано: {stats.count} из {stats.limit}</p>
-                  </>
-                )}
+                <p className="font-bold text-xl">✅ Активирован тариф: {stats.limitType === 'unlimited' ? 'Безлимит' : stats.limit + ' записей'}</p>
+                <p className="font-medium opacity-90">Использовано: {stats.count} записей</p>
               </div>
             </div>
-          </div>
-        )}
-
-        {/* Promo Code Activation - Only show if NOT activated */}
-        {!stats.isActivated && (
-          <div className="bg-white rounded-xl shadow-md border-2 border-gray-200 p-6 mb-8">
-            <h3 className="text-lg font-bold text-gray-900 mb-4">🎟️ Активация промокода</h3>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                placeholder="Введите промокод"
-                value={promoCode}
-                onChange={(e) => setPromoCode(e.target.value)}
-                className="flex-1 p-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none font-medium"
-              />
-              <button
-                onClick={handleActivatePromo}
-                className="bg-blue-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-blue-700 transition"
-              >
-                Активировать
-              </button>
-            </div>
-            <p className="text-sm text-gray-600 mt-2">
-              Промокод можно получить у администратора
-            </p>
           </div>
         )}
 
@@ -381,11 +362,11 @@ export default function Dashboard() {
                 className="p-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none font-medium text-gray-900 placeholder-gray-500"
               />
               
-              {/* Receipt Upload - Only for expenses */}
+              {/* Загрузка чека - только для расходов */}
               {formData.type === 'expense' && (
                 <div className="md:col-span-4">
                   <label className="block text-sm font-bold text-gray-900 mb-2">
-                     Чек (фото, необязательно)
+                    📎 Чек (фото, необязательно)
                   </label>
                   <input 
                     type="file" 
@@ -493,7 +474,7 @@ export default function Dashboard() {
           <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-auto">
               <div className="flex justify-between items-center p-4 border-b-2">
-                <h3 className="text-xl font-bold text-gray-900">📎 Чек</h3>
+                <h3 className="text-xl font-bold text-gray-900"> Чек</h3>
                 <button 
                   onClick={() => setViewReceiptUrl(null)}
                   className="p-2 hover:bg-gray-100 rounded-lg transition"
@@ -528,119 +509,121 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Tariff Modal */}
+        {/* Tariff Selection Modal */}
         {showTariffModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl max-w-5xl w-full max-h-[90vh] overflow-auto">
-              <div className="flex justify-between items-center p-6 border-b-2">
-                <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                  <span className="text-3xl">🚀</span> Выберите тариф
-                </h2>
-                <button
+          <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4 overflow-y-auto">
+            <div className="bg-white rounded-xl max-w-4xl w-full p-6 my-8">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-2xl font-bold text-gray-900">🚀 Выберите тариф</h3>
+                <button 
                   onClick={() => setShowTariffModal(false)}
                   className="p-2 hover:bg-gray-100 rounded-lg transition"
                 >
                   <X size={24} />
                 </button>
               </div>
-              <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
-                {/* Расширенный */}
-                <div className="border-2 border-blue-200 rounded-xl p-6 bg-blue-50 hover:shadow-lg transition">
-                  <div className="flex items-center gap-2 mb-4">
-                    <span className="text-2xl">⚡</span>
-                    <h3 className="text-xl font-bold text-gray-900">Расширенный</h3>
-                  </div>
-                  <p className="text-3xl font-bold text-gray-900 mb-2">750 ₽</p>
-                  <p className="text-gray-600 mb-4">200 записей</p>
-                  <ul className="space-y-2 mb-6">
-                    <li className="flex items-center gap-2 text-gray-700">
-                      <Check size={16} className="text-green-600" />
-                      <span>200 записей</span>
-                    </li>
-                    <li className="flex items-center gap-2 text-gray-700">
-                      <Check size={16} className="text-green-600" />
-                      <span>Экспорт в Excel</span>
-                    </li>
-                    <li className="flex items-center gap-2 text-gray-700">
-                      <Check size={16} className="text-green-600" />
-                      <span>Поиск по записям</span>
-                    </li>
-                  </ul>
-                  <button
-                    onClick={() => handlePayment('200')}
-                    className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 transition"
-                  >
-                    Выбрать
-                  </button>
-                </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                {TARIFFS.map(tariff => {
+                  const Icon = tariff.icon;
+                  return (
+                    <div 
+                      key={tariff.id}
+                      className={`border-2 rounded-xl p-6 hover:shadow-lg transition ${
+                        tariff.color === 'blue' ? 'border-blue-300 bg-blue-50' :
+                        tariff.color === 'purple' ? 'border-purple-300 bg-purple-50' :
+                        'border-yellow-400 bg-yellow-50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 mb-3">
+                        <Icon size={28} className={
+                          tariff.color === 'blue' ? 'text-blue-600' :
+                          tariff.color === 'purple' ? 'text-purple-600' :
+                          'text-yellow-600'
+                        } />
+                        <h4 className="font-bold text-lg text-gray-900">{tariff.name}</h4>
+                      </div>
+                      <p className="text-3xl font-bold text-gray-900 mb-2">
+                        {tariff.price.toLocaleString()} ₽
+                      </p>
+                      <p className="text-gray-700 font-medium mb-4">
+                        {tariff.limit === 999999 ? 'Безлимит' : tariff.limit + ' записей'}
+                      </p>
+                      <ul className="space-y-2 mb-4">
+                        {tariff.features.map((feature, idx) => (
+                          <li key={idx} className="flex items-center gap-2 text-gray-700">
+                            <Check size={16} className="text-green-600" />
+                            <span className="text-sm font-medium">{feature}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="bg-gray-50 rounded-xl p-6 border-2 border-gray-200">
+                <h4 className="font-bold text-gray-900 mb-3">💳 Как оплатить?</h4>
+                <ol className="space-y-2 text-gray-700 font-medium">
+                  <li>1. Выберите удобный тариф выше</li>
+                  <li>2. Напишите нам для получения реквизитов</li>
+                  <li>3. После оплаты вы получите промокод</li>
+                  <li>4. Введите промокод ниже для активации</li>
+                </ol>
+                <button
+                  onClick={() => {
+                    setShowTariffModal(false);
+                    setShowActivateModal(true);
+                  }}
+                  className="w-full mt-4 bg-green-600 text-white py-3 rounded-lg font-bold hover:bg-green-700 transition"
+                >
+                  🔑 У меня уже есть промокод
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
-                {/* Профессиональный */}
-                <div className="border-2 border-purple-200 rounded-xl p-6 bg-purple-50 hover:shadow-lg transition">
-                  <div className="flex items-center gap-2 mb-4">
-                    <span className="text-2xl">⭐</span>
-                    <h3 className="text-xl font-bold text-gray-900">Профессиональный</h3>
-                  </div>
-                  <p className="text-3xl font-bold text-gray-900 mb-2">1 490 ₽</p>
-                  <p className="text-gray-600 mb-4">500 записей</p>
-                  <ul className="space-y-2 mb-6">
-                    <li className="flex items-center gap-2 text-gray-700">
-                      <Check size={16} className="text-green-600" />
-                      <span>500 записей</span>
-                    </li>
-                    <li className="flex items-center gap-2 text-gray-700">
-                      <Check size={16} className="text-green-600" />
-                      <span>Экспорт в Excel</span>
-                    </li>
-                    <li className="flex items-center gap-2 text-gray-700">
-                      <Check size={16} className="text-green-600" />
-                      <span>Поиск по записям</span>
-                    </li>
-                    <li className="flex items-center gap-2 text-gray-700">
-                      <Check size={16} className="text-green-600" />
-                      <span>Приоритетная поддержка</span>
-                    </li>
-                  </ul>
-                  <button
-                    onClick={() => handlePayment('500')}
-                    className="w-full bg-purple-600 text-white py-3 rounded-lg font-bold hover:bg-purple-700 transition"
-                  >
-                    Выбрать
-                  </button>
-                </div>
-
-                {/* Безлимит */}
-                <div className="border-2 border-yellow-300 rounded-xl p-6 bg-yellow-50 hover:shadow-lg transition">
-                  <div className="flex items-center gap-2 mb-4">
-                    <span className="text-2xl">👑</span>
-                    <h3 className="text-xl font-bold text-gray-900">Безлимит</h3>
-                  </div>
-                  <p className="text-3xl font-bold text-gray-900 mb-2">2 190 ₽</p>
-                  <p className="text-gray-600 mb-4">Безлимит</p>
-                  <ul className="space-y-2 mb-6">
-                    <li className="flex items-center gap-2 text-gray-700">
-                      <Check size={16} className="text-green-600" />
-                      <span>Безлимитные записи</span>
-                    </li>
-                    <li className="flex items-center gap-2 text-gray-700">
-                      <Check size={16} className="text-green-600" />
-                      <span>Все функции</span>
-                    </li>
-                    <li className="flex items-center gap-2 text-gray-700">
-                      <Check size={16} className="text-green-600" />
-                      <span>Пожизненный доступ</span>
-                    </li>
-                    <li className="flex items-center gap-2 text-gray-700">
-                      <Check size={16} className="text-green-600" />
-                      <span>VIP поддержка</span>
-                    </li>
-                  </ul>
-                  <button
-                    onClick={() => handlePayment('unlimited')}
-                    className="w-full bg-yellow-600 text-white py-3 rounded-lg font-bold hover:bg-yellow-700 transition"
-                  >
-                    Выбрать
-                  </button>
-                </div>
+        {/* Activation Modal */}
+        {showActivateModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl max-w-md w-full p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-2xl font-bold text-gray-900">🔑 Активация промокода</h3>
+                <button 
+                  onClick={() => setShowActivateModal(false)}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+              <p className="text-gray-700 mb-4 font-medium">
+                Введите промокод, который вы получили после оплаты
+              </p>
+              <input
+                type="text"
+                placeholder="KAZNA-XXX-ABC123"
+                value={promoCode}
+                onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+                className="w-full p-3 border-2 border-gray-300 rounded-lg font-medium text-gray-900 mb-4"
+              />
+              {activationMessage && (
+                <p className={`mb-4 font-bold ${activationMessage.includes('✅') ? 'text-green-700' : 'text-red-700'}`}>
+                  {activationMessage}
+                </p>
+              )}
+              <div className="flex gap-2">
+                <button
+                  onClick={handleActivate}
+                  disabled={activating || !promoCode}
+                  className="flex-1 bg-green-600 text-white py-3 rounded-lg font-bold hover:bg-green-700 disabled:opacity-50 transition"
+                >
+                  {activating ? 'Проверка...' : 'Активировать'}
+                </button>
+                <button
+                  onClick={() => setShowActivateModal(false)}
+                  className="px-4 py-3 bg-gray-200 text-gray-800 rounded-lg font-bold hover:bg-gray-300 transition"
+                >
+                  Отмена
+                </button>
               </div>
             </div>
           </div>
