@@ -134,12 +134,25 @@ export default function Dashboard() {
     setUploading(false);
   };
 
-  const handlePayment = async (plan: string) => {
-    const email = prompt('Введите email для получения промокода:');
-    if (!email) return;
+  const handlePayment = (plan: string) => {
+    const prices = {
+      '200': '750 ₽',
+      '500': '1 490 ₽',
+      'unlimited': '2 190 ₽'
+    };
     
-    alert(`Переход к оплате тарифа "${plan}". Email: ${email}\n\n(Здесь будет интеграция с ЮKassa)`);
-    // TODO: Интеграция с ЮKassa
+    const names = {
+      '200': 'Расширенный (200 записей)',
+      '500': 'Профессиональный (500 записей)',
+      'unlimited': 'Безлимит'
+    };
+    
+    alert(
+      ` Информация по тарифу "${names[plan as keyof typeof names]}"\n\n` +
+      `💰 Стоимость: ${prices[plan as keyof typeof prices]}\n\n` +
+      `Для активации тарифа свяжитесь с администратором.\n` +
+      `Админ-панель: /admin`
+    );
   };
 
   const exportToExcel = () => {
@@ -264,29 +277,24 @@ export default function Dashboard() {
           </div>
         )}
 
-		{/* Activated Tariff Block - Compact & Sticky */}
-		{stats.isActivated && (
-		<div className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-lg shadow-md p-4 mb-6 text-white sticky top-4 z-10">
-			<div className="flex items-center justify-between">
-			<div className="flex items-center gap-3">
-				<Check size={24} />
-				<div>
-				{stats.limit === 999999 || stats.limitType === 'unlimited' ? (
-					<p className="font-bold">✅ Безлимит активирован!</p>
-				) : (
-					<p className="font-bold">✅ Тариф: {stats.count} из {stats.limit} записей</p>
-				)}
-				</div>
-			</div>
-			<button
-				onClick={() => setShowTariffModal(true)}
-				className="bg-white bg-opacity-20 hover:bg-opacity-30 px-4 py-2 rounded-lg font-medium transition text-sm"
-			>
-				Сменить тариф
-			</button>
-			</div>
-		</div>
-		)}
+        {/* Activated Tariff Block */}
+        {stats.isActivated && (
+          <div className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl shadow-md p-6 mb-8 text-white">
+            <div className="flex items-center gap-3">
+              <Check size={32} />
+              <div>
+                {stats.limit === 999999 || stats.limitType === 'unlimited' ? (
+                  <p className="font-bold text-xl">✅ Безлимит активирован!</p>
+                ) : (
+                  <>
+                    <p className="font-bold text-xl">✅ Тариф на {stats.limit} записей активирован!</p>
+                    <p className="font-medium opacity-90">Использовано: {stats.count} из {stats.limit}</p>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Add Form */}
         {showForm && (
@@ -299,7 +307,7 @@ export default function Dashboard() {
                 className="p-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none font-medium text-gray-900"
               >
                 <option value="income">💰 Взнос (Доход)</option>
-                <option value="expense"> Расход</option>
+                <option value="expense">💸 Расход</option>
               </select>
               <input 
                 type="number" 
@@ -475,9 +483,11 @@ export default function Dashboard() {
         {/* Tariff Modal */}
         {showTariffModal && (
           <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-auto">
+            <div className="bg-white rounded-xl max-w-5xl w-full max-h-[90vh] overflow-auto">
               <div className="flex justify-between items-center p-6 border-b-2">
-                <h2 className="text-2xl font-bold text-gray-900">Выберите тариф</h2>
+                <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                  <span className="text-3xl">🚀</span> Выберите тариф
+                </h2>
                 <button
                   onClick={() => setShowTariffModal(false)}
                   className="p-2 hover:bg-gray-100 rounded-lg transition"
@@ -485,25 +495,104 @@ export default function Dashboard() {
                   <X size={24} />
                 </button>
               </div>
-              <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-                {[
-                  { id: '200', name: '200 записей', price: 750, color: 'blue' },
-                  { id: '500', name: '500 записей', price: 1490, color: 'purple' },
-                  { id: 'unlimited', name: 'Безлимит', price: 2190, color: 'gold' }
-                ].map(plan => (
+              <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Расширенный */}
+                <div className="border-2 border-blue-200 rounded-xl p-6 bg-blue-50 hover:shadow-lg transition">
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="text-2xl"></span>
+                    <h3 className="text-xl font-bold text-gray-900">Расширенный</h3>
+                  </div>
+                  <p className="text-3xl font-bold text-gray-900 mb-2">750 ₽</p>
+                  <p className="text-gray-600 mb-4">200 записей</p>
+                  <ul className="space-y-2 mb-6">
+                    <li className="flex items-center gap-2 text-gray-700">
+                      <Check size={16} className="text-green-600" />
+                      <span>200 записей</span>
+                    </li>
+                    <li className="flex items-center gap-2 text-gray-700">
+                      <Check size={16} className="text-green-600" />
+                      <span>Экспорт в Excel</span>
+                    </li>
+                    <li className="flex items-center gap-2 text-gray-700">
+                      <Check size={16} className="text-green-600" />
+                      <span>Поиск по записям</span>
+                    </li>
+                  </ul>
                   <button
-                    key={plan.id}
-                    onClick={() => handlePayment(plan.id)}
-                    className={`p-6 rounded-xl border-2 transition font-bold text-white ${
-                      plan.color === 'blue' ? 'border-blue-500 bg-blue-600 hover:bg-blue-700' :
-                      plan.color === 'purple' ? 'border-purple-500 bg-purple-600 hover:bg-purple-700' :
-                      'border-yellow-500 bg-yellow-600 hover:bg-yellow-700'
-                    }`}
+                    onClick={() => handlePayment('200')}
+                    className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 transition"
                   >
-                    <p className="text-xl mb-2">{plan.name}</p>
-                    <p className="text-2xl">{plan.price.toLocaleString()} ₽</p>
+                    Выбрать
                   </button>
-                ))}
+                </div>
+
+                {/* Профессиональный */}
+                <div className="border-2 border-purple-200 rounded-xl p-6 bg-purple-50 hover:shadow-lg transition">
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="text-2xl">⭐</span>
+                    <h3 className="text-xl font-bold text-gray-900">Профессиональный</h3>
+                  </div>
+                  <p className="text-3xl font-bold text-gray-900 mb-2">1 490 ₽</p>
+                  <p className="text-gray-600 mb-4">500 записей</p>
+                  <ul className="space-y-2 mb-6">
+                    <li className="flex items-center gap-2 text-gray-700">
+                      <Check size={16} className="text-green-600" />
+                      <span>500 записей</span>
+                    </li>
+                    <li className="flex items-center gap-2 text-gray-700">
+                      <Check size={16} className="text-green-600" />
+                      <span>Экспорт в Excel</span>
+                    </li>
+                    <li className="flex items-center gap-2 text-gray-700">
+                      <Check size={16} className="text-green-600" />
+                      <span>Поиск по записям</span>
+                    </li>
+                    <li className="flex items-center gap-2 text-gray-700">
+                      <Check size={16} className="text-green-600" />
+                      <span>Приоритетная поддержка</span>
+                    </li>
+                  </ul>
+                  <button
+                    onClick={() => handlePayment('500')}
+                    className="w-full bg-purple-600 text-white py-3 rounded-lg font-bold hover:bg-purple-700 transition"
+                  >
+                    Выбрать
+                  </button>
+                </div>
+
+                {/* Безлимит */}
+                <div className="border-2 border-yellow-300 rounded-xl p-6 bg-yellow-50 hover:shadow-lg transition">
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="text-2xl">👑</span>
+                    <h3 className="text-xl font-bold text-gray-900">Безлимит</h3>
+                  </div>
+                  <p className="text-3xl font-bold text-gray-900 mb-2">2 190 ₽</p>
+                  <p className="text-gray-600 mb-4">Безлимит</p>
+                  <ul className="space-y-2 mb-6">
+                    <li className="flex items-center gap-2 text-gray-700">
+                      <Check size={16} className="text-green-600" />
+                      <span>Безлимитные записи</span>
+                    </li>
+                    <li className="flex items-center gap-2 text-gray-700">
+                      <Check size={16} className="text-green-600" />
+                      <span>Все функции</span>
+                    </li>
+                    <li className="flex items-center gap-2 text-gray-700">
+                      <Check size={16} className="text-green-600" />
+                      <span>Пожизненный доступ</span>
+                    </li>
+                    <li className="flex items-center gap-2 text-gray-700">
+                      <Check size={16} className="text-green-600" />
+                      <span>VIP поддержка</span>
+                    </li>
+                  </ul>
+                  <button
+                    onClick={() => handlePayment('unlimited')}
+                    className="w-full bg-yellow-600 text-white py-3 rounded-lg font-bold hover:bg-yellow-700 transition"
+                  >
+                    Выбрать
+                  </button>
+                </div>
               </div>
             </div>
           </div>
