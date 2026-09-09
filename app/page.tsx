@@ -207,7 +207,7 @@ export default function Dashboard() {
         setActivationMessage('');
       }, 2000);
     } else {
-      setActivationMessage(' ' + data.error);
+      setActivationMessage('❌ ' + data.error);
     }
     setActivating(false);
   };
@@ -307,13 +307,16 @@ export default function Dashboard() {
           </div>
         )}
 
+        {/* Compact Activated Tariff Banner */}
         {stats.isActivated && (
-          <div className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl shadow-md p-6 mb-8 text-white">
+          <div className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-lg shadow-md p-3 mb-6 text-white flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Check size={32} />
+              <Check size={20} className="flex-shrink-0" />
               <div>
-                <p className="font-bold text-xl">✅ Активирован тариф: {stats.limitType === 'unlimited' ? 'Безлимит' : stats.limit + ' записей'}</p>
-                <p className="font-medium opacity-90">Использовано: {stats.count} записей</p>
+                <p className="font-bold text-sm md:text-base">
+                  ✅ Тариф: {stats.limitType === 'unlimited' ? 'Безлимит' : stats.limit + ' записей'}
+                </p>
+                <p className="text-xs md:text-sm opacity-90">Использовано: {stats.count}</p>
               </div>
             </div>
           </div>
@@ -356,7 +359,7 @@ export default function Dashboard() {
                 className="p-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none font-medium text-gray-900 placeholder-gray-500"
               />
               
-              {/* Загрузка чека - только для расходов */}
+              {/* Receipt Upload - Only for expenses */}
               {formData.type === 'expense' && (
                 <div className="md:col-span-4">
                   <label className="block text-sm font-bold text-gray-900 mb-2">
@@ -581,7 +584,7 @@ export default function Dashboard() {
           <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-xl max-w-md w-full p-6">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-2xl font-bold text-gray-900"> Активация промокода</h3>
+                <h3 className="text-2xl font-bold text-gray-900">🔑 Активация промокода</h3>
                 <button 
                   onClick={() => setShowActivateModal(false)}
                   className="p-2 hover:bg-gray-100 rounded-lg transition"
