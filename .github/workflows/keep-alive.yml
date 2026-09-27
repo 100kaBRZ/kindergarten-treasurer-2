@@ -10,14 +10,6 @@ jobs:
   ping-both:
     runs-on: ubuntu-latest
     steps:
-      - name: Wake up Supabase Project 1 (kindergarten-db)
-        run: |
-          echo "Waking up Project 1..."
-          curl -s -X GET "https://iganeaifgyyqlfnzvqie.supabase.co/rest/v1/settings?select=key" \
-          -H "apikey: sb_publishable_5aGEBPUrfiDOR2eXIwu-Hw_BNtJv7iE" \
-          -H "Authorization: Bearer sb_publishable_5aGEBPUrfiDOR2eXIwu-Hw_BNtJv7iE" > /dev/null
-          echo "Project 1 pinged!"
-
       - name: Wake up Supabase Project 2 (kindergarten-db-2)
         run: |
           echo "Waking up Project 2..."
